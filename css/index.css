@@ -1,0 +1,29 @@
+p {
+    font-family: monospace;
+}
+
+p.p1 {
+    font-size: 24px;
+}
+
+p.p2 {
+    font-size: 16px;
+}
+
+div.center {
+    width: 80vw;
+    margin: 0 auto;
+}
+
+@media(min-width: 1px) {
+    div.center {
+        width: 80vw;
+    }
+}
+
+
+@media(min-width: 801px) {
+    div.center {
+        width: 50vw;
+    }
+}
