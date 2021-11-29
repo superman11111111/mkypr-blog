@@ -1,5 +1,6 @@
 p {
     font-family: monospace;
+    margin: 0;
 }
 
 p.p1 {
@@ -8,6 +9,16 @@ p.p1 {
 
 p.p2 {
     font-size: 16px;
+}
+
+td {
+    font-family: monospace;
+}
+
+div.box { 
+	float: left;
+	padding: 20px;
+	/* background: #eee; */
 }
 
 div.center {

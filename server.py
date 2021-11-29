@@ -19,6 +19,7 @@ def get_uuid():
 class Bookkeeper:
     def __init__(self) -> None:
         self.valid_uuids = set()
+        self.threads = set()
 
     def add_uuid(self, uuid):
         return self.valid_uuids.add(uuid)
@@ -31,60 +32,97 @@ class Bookkeeper:
             return True
         return False
 
+    def start_thread(self, thread):
+        thread.start()
+        self.threads.add(thread)
+
+
+class Route:
+    def __init__(self, path, type, file) -> None:
+        self.path = path
+        self.type = type 
+        self.file = file
+
+class HtmlRoute(Route):
+    def __init__(self, path, file) -> None:
+        super().__init__(path, 'text/html', file)
+        
+class CssRoute(Route):
+    def __init__(self, path, file) -> None:
+        super().__init__(path, 'text/css', file)
+
+class ImgRoute(Route):
+    def __init__(self, path, file) -> None:
+        super().__init__(path, 'image/png', file)
+
 
 class RequestHandler(BaseHTTPRequestHandler):
     def __init__(self, *args, **kwargs) -> None:
+        self.dirs = {}
+        self.dirs['base'] = os.path.dirname(os.path.realpath(__file__))
+        self.dirs['html'] = os.path.join(self.dirs['base'], 'html')
+        self.dirs['css'] = os.path.join(self.dirs['base'], 'css')
+        self.dirs['img'] = os.path.join(self.dirs['base'], 'img')
+        self.dirs['js'] = os.path.join(self.dirs['base'], 'js')
+
         super().__init__(*args, **kwargs)
 
+    def valid_routes(self):
+        return [
+            HtmlRoute('/', 'index.html'),
+            HtmlRoute('/login', 'login.html'),
+            HtmlRoute('/substances', 'substances.html'),
+            HtmlRoute('/art', 'art.html'),
+            HtmlRoute('/trader', 'trader.html'),
+            CssRoute('/css/index.css', 'index.css'),
+            ImgRoute('/img/1.png', '1.png')]
+
     def valid_paths(self):
-        return {
-            '/': ('text/html', 'html/index.html'),
-            '/login': ('text/html', 'html/login.html'),
-            '/substances': ('text/html', 'html/substances.html'),
-            '/css/index.css': ('text/css', 'css/index.css')}
+        dd = {}
+        for r in self.valid_routes():
+            dd[r.path] = r
+        return dd
 
     def do_GET(self, *args):
-        if self.path in self.valid_paths():
-            content_length = os.path.getsize(self.valid_paths()[self.path][1])
-            self.send_response(200)
+        def send_file(file: str, type: str, code: int) -> None:
+            content_length = os.path.getsize(file)
+            self.send_response(code)
             self.send_header(
-                'Content-Type', f'{self.valid_paths()[self.path][0]}; charset=utf-8')
+                'Content-Type', f'{type}; charset=utf-8')
             self.send_header('Content-Length', str(content_length))
             self.end_headers()
             self.flush_headers()
-            shutil.copyfileobj(
-                open(self.valid_paths()[self.path][1], 'rb'), self.wfile)
+            shutil.copyfileobj(open(file, 'rb'), self.wfile)
+            return None 
+
+        def send_html(html_file: str, code: int) -> None:
+            return send_file(html_file, 'text/html', code)
+
+
+        valid_paths = self.valid_paths()
+        if self.path in valid_paths:
+            type_dict = {'text/html': 'html', 'text/css': 'css', 'image/png': 'img'}
+            route = valid_paths[self.path]
+            parent_dir = self.dirs[type_dict[route.type]]
+            file_path = os.path.join(parent_dir, route.file)
+            return send_file(file_path, route.type, 200)
         elif self.path.startswith('/dashboard'):
-            global BK
-            if BK.is_valid_uuid(self.path.split('/')[2]):
-                content_length = os.path.getsize('html/dashboard.html')
-                self.send_response(200)
-                self.send_header(
-                    'Content-Type', 'text/html; charset=utf-8')
-                self.send_header('Content-Length', str(content_length))
-                self.end_headers()
-                self.flush_headers()
-                shutil.copyfileobj(
-                    open('html/dashboard.html', 'rb'), self.wfile)
-            else:
-                content_length = os.path.getsize('html/error403.html')
-                self.send_response(403)
-                self.send_header(
-                    'Content-Type', 'text/html; charset=utf-8')
-                self.send_header('Content-Length', str(content_length))
-                self.end_headers()
-                self.flush_headers()
-                shutil.copyfileobj(
-                    open('html/error403.html', 'rb'), self.wfile)
-        else:
-            content_length = os.path.getsize('html/error404.html')
-            self.send_response(404)
-            self.send_header(
-                'Content-Type', 'text/html; charset=utf-8')
-            self.send_header('Content-Length', str(content_length))
-            self.end_headers()
-            self.flush_headers()
-            shutil.copyfileobj(open('html/error404.html', 'rb'), self.wfile)
+            path_split = self.path.split('/')
+            print(path_split)
+            if len(path_split) > 2:
+                global BK
+                if BK.is_valid_uuid(path_split[2]):
+                    return send_html('html/dashboard.html', 200)
+                return send_html('html/error403.html', 403)
+        elif self.path.startswith('/js'):
+            path_split = self.path.split('/')
+            script_name = path_split[2]
+            js_dir = self.dirs['js']
+            for sn in os.listdir(js_dir):
+                if script_name == sn:
+                    file_path = os.path.join(js_dir, script_name)
+                    return send_file(file_path, 'text/javascript', 200)
+        return send_html('html/error404.html', 404)
 
     def do_POST(self, *args):
         content_len = int(self.headers.get(('content-length')))
@@ -107,8 +145,16 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_error(401, 'wrong password')
 
 
+def serve_proxies():
+    pass
+
+
 BK = Bookkeeper()
 PORT = 8000
 server = HTTPServer(('', PORT), RequestHandler)
 print(f'http://localhost:{PORT}')
+from threading import Thread
+t = Thread(target=serve_proxies, args=( ))
+BK.start_thread(t)
 server.serve_forever()
+
