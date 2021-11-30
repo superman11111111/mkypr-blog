@@ -16,12 +16,18 @@ var tradesTable =  document.createElement('table');
 var outerDiv = document.createElement('div');
 var plotDiv = document.createElement('div');
 var calctimesDiv = document.createElement('div');
+var latenciesDiv = document.createElement('div');
 plotDiv.className = 'box';
 calctimesDiv.className = 'box';
+latenciesDiv.className = 'box';
 outerDiv.appendChild(plotDiv);
 outerDiv.appendChild(calctimesDiv);
+outerDiv.appendChild(latenciesDiv);
 
 var plotSelect = document.createElement('select');
+
+var roiDiv = document.createElement('div');
+roiDiv.className = 'box';
 
 function resize() {
     document.body.appendChild(plotSelect);
@@ -30,6 +36,7 @@ function resize() {
     document.body.appendChild(signalsDiv);
     document.body.appendChild(tradesDiv);
     document.body.appendChild(profitDiv);
+    document.body.appendChild(roiDiv); 
     update();
     setInterval(function () {
         update();
@@ -48,11 +55,7 @@ function req(url, callback) {
 
 function update() {
     console.log('update');
-    let logUrl = baseUrl + "/log" 
-    let profitUrl = baseUrl + "/profit" 
-    let signalsUrl = baseUrl + "/signals" 
-    let tradesUrl =  baseUrl + "/trades" 
-    req(logUrl, function (responseText) {
+    req(baseUrl + "/log", function (responseText) {
         let jj = JSON.parse(responseText);
         let arr = Array.from(jj).reverse();
         let i = arr.length;
@@ -75,7 +78,7 @@ function update() {
         logDiv.appendChild(p)
         logDiv.appendChild(logTable);
     });
-    req(signalsUrl, function (responseText) {
+    req(baseUrl + "/signals", function (responseText) {
         let jj = JSON.parse(responseText)
         let arr = Array.from(jj);
         let i = arr.length;
@@ -98,7 +101,7 @@ function update() {
         signalsDiv.appendChild(p)
         signalsDiv.appendChild(signalsTable);
     });
-    req(tradesUrl, function (responseText) {
+    req(baseUrl + "/trades", function (responseText) {
         let jj = JSON.parse(responseText)
         let arr = Array.from(jj);
         let i = arr.length;
@@ -121,7 +124,7 @@ function update() {
         tradesDiv.appendChild(p)
         tradesDiv.appendChild(tradesTable);
     });
-    req(profitUrl, function (responseText) {
+    req(baseUrl + "/profit", function (responseText) {
         profitDiv.innerHTML = '';
         let jj = JSON.parse(responseText)
         let p = document.createElement('p')
@@ -135,7 +138,8 @@ function update() {
     });
     req(baseUrl + "/data", function (responseText) {
         let jj = JSON.parse(responseText)
-        plotSelect.addEventListener('change', function () {
+        plotSelect.addEventListener('change', function (ev) {
+            console.log(this.ev);
             let pair = this.value; 
             let data = jj[pair];
             let Y1 = data[0];
@@ -213,7 +217,7 @@ function update() {
             opt.innerHTML = pair;
             plotSelect.add(opt);
         });
-    })
+    });
     req(baseUrl + "/calctimes", function (responseText) {
         let jj = JSON.parse(responseText); 
         let Y = Array.from(jj)
@@ -248,7 +252,56 @@ function update() {
             }],
             layout
         );
-    })
+    });
+    req(baseUrl + "/latencies", function (responseText) {
+        let jj = JSON.parse(responseText); 
+        let data = Array.from(jj);
+        let X = data.map((d, _) => d[0]);
+        let Y = data.map((d, _) => d[1]);
+        let layout = {
+            title: {
+              text: 'latencies',
+              font: {
+                family: 'Courier New, monospace',
+                size: 24
+              },
+              xref: 'paper',
+              x: 0.05,
+            },
+            yaxis: {
+              title: {
+                text: 'latency in ms',
+                font: {
+                  family: 'Courier New, monospace',
+                  size: 18,
+                  color: '#7f7f7f'
+                }
+              }
+            }
+          };
+        Plotly.newPlot(latenciesDiv, 
+            [{
+                x: X,
+                y: Y,
+                name: 'Name of Trace 2',
+                mode: 'markers', 
+                type: 'scatter'
+            }],
+            layout
+        );
+    });
+    req(baseUrl + "/roi", function (responseText) {
+        let jj = JSON.parse(responseText);
+        roiDiv.innerHTML = '';
+        let p = document.createElement('p');
+        p.innerHTML = String(jj);
+        
+        let p1 = document.createElement('p')
+        p1.className = 'p1';
+        p1.innerHTML = 'roi';
+        roiDiv.appendChild(p1)
+        roiDiv.appendChild(p);
+    });
     
 }
 
