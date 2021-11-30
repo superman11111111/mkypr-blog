@@ -1,5 +1,5 @@
 // var baseUrl = "http://62.171.165.127:3333"
-var updateInterv = 3000;
+var updateInterv = 10 * 1000;
 var baseUrl = "http://127.0.0.1:3333"
 var logDiv = document.createElement('div');
 var logTable =  document.createElement('table');
@@ -13,7 +13,19 @@ var tradesDiv = document.createElement('div');
 tradesDiv.className = 'box';
 var tradesTable =  document.createElement('table');
 
+var outerDiv = document.createElement('div');
+var plotDiv = document.createElement('div');
+var calctimesDiv = document.createElement('div');
+plotDiv.className = 'box';
+calctimesDiv.className = 'box';
+outerDiv.appendChild(plotDiv);
+outerDiv.appendChild(calctimesDiv);
+
+var plotSelect = document.createElement('select');
+
 function resize() {
+    document.body.appendChild(plotSelect);
+    document.body.appendChild(outerDiv);
     document.body.appendChild(logDiv);
     document.body.appendChild(signalsDiv);
     document.body.appendChild(tradesDiv);
@@ -121,6 +133,122 @@ function update() {
         profitDiv.appendChild(p1)
         profitDiv.appendChild(p);
     });
+    req(baseUrl + "/data", function (responseText) {
+        let jj = JSON.parse(responseText)
+        plotSelect.addEventListener('change', function () {
+            let pair = this.value; 
+            let data = jj[pair];
+            let Y1 = data[0];
+            let Y2 = data[1];
+            let Y3 = data[2];
+            let Y4 = data[3];
+            let X = Array(Y1.length).fill().map((_, idx) => idx)
+            let layout = {
+                title: {
+                text: pair,
+                font: {
+                    family: 'Courier New, monospace',
+                    size: 24
+                },
+                xref: 'paper',
+                x: 0.05,
+                },
+                xaxis: {
+                title: {
+                    text: 'time in minutes',
+                    font: {
+                    family: 'Courier New, monospace',
+                    size: 18,
+                    color: '#7f7f7f'
+                    }
+                },
+                },
+                yaxis: {
+                title: {
+                    text: 'usd',
+                    font: {
+                    family: 'Courier New, monospace',
+                    size: 18,
+                    color: '#7f7f7f'
+                    }
+                }
+                }
+            };
+            Plotly.newPlot(
+                plotDiv, 
+                [
+                    {
+                        x: X,
+                        y: Y1,
+                        name: 'y',
+                        type: 'line'
+                    },
+                    {
+                        x: X,
+                        y: Y2,
+                        name: 'emabase',
+                        type: 'line'
+                    },
+                    {
+                        x: X,
+                        y: Y3,
+                        name: 'emaY',
+                        type: 'line'
+                    },
+                    // {
+                    //     x: X,
+                    //     y: Y4,
+                    //     name: 'emadiff',
+                    //     type: 'line'
+                    // },
+                ],
+                layout
+            );
+        })
+        plotSelect.innerHTML = '';
+        Object.entries(jj).forEach(e => {
+            let pair = e[0]; 
+            let opt = document.createElement('option')
+            opt.value = pair;
+            opt.innerHTML = pair;
+            plotSelect.add(opt);
+        });
+    })
+    req(baseUrl + "/calctimes", function (responseText) {
+        let jj = JSON.parse(responseText); 
+        let Y = Array.from(jj)
+        let X = Array(Y.length).fill().map((_, idx) => idx)
+        let layout = {
+            title: {
+              text: 'calctimes',
+              font: {
+                family: 'Courier New, monospace',
+                size: 24
+              },
+              xref: 'paper',
+              x: 0.05,
+            },
+            yaxis: {
+              title: {
+                text: 'time in seconds',
+                font: {
+                  family: 'Courier New, monospace',
+                  size: 18,
+                  color: '#7f7f7f'
+                }
+              }
+            }
+          };
+        Plotly.newPlot(calctimesDiv, 
+            [{
+                x: X,
+                y: Y,
+                name: 'Name of Trace 2',
+                type: 'line'
+            }],
+            layout
+        );
+    })
     
 }
 

@@ -131,7 +131,6 @@ class RequestHandler(BaseHTTPRequestHandler):
         if key != 'password':
             self.send_error(400, 'invalid post request data')
             return
-
         global BK
         if BK.is_correct_pass(password):
             uuid = get_uuid()
